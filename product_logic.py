@@ -50,14 +50,13 @@ def read_path(directory: str):
 
 
 def save_list(row: list, save_path: str):
+    """Сохраняем файл"""
     with open(save_path + "res.txt", "w") as file:
         print(*row, file=file, sep="\n")
 
 
 @time_of_function
 def main():
-    #for i in range(len(dm_codes)):
-    #    dm_encode(dm_codes[i], f"code{i}", directory)
     codes = []
     for j in read_path(directory):
         codes.append(dm_decode(directory + j))
