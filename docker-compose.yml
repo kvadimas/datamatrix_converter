@@ -1,7 +1,8 @@
 version: "3"
 
 services:
-  backend:
+  dmconverter:
+    restart: always
     build: .
     ports:
-      - "9205:80"
+      - "9205:9205"

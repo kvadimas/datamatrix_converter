@@ -1,18 +1,16 @@
-import os
 import uvicorn
 import zipfile
-import io
 import secrets
-from fastapi import FastAPI, File, UploadFile, Form
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi import FastAPI, File, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
-from typing import List
+from typing import List, Annotated
 
 from product_logic import dm_decode, dm_encode
 from config import directory, host, port
 
 
-app = FastAPI(title="DM Converter")
+app = FastAPI(title="DM Converter", version="0.2")
 
 
 class Item(BaseModel):
@@ -21,12 +19,13 @@ class Item(BaseModel):
 
 
 @app.post(
-        "/create/",
+        path="/create/",
         response_class=FileResponse,
-        responses={200: {"content": {"application/x-zip-compressed": {}}}}
+        responses={200: {"content": {"application/x-zip-compressed": {}}}},
+        name="Create DataMatrixCodes"
         )
 async def create_code(row: Item):
-    """Преобразование кодов в DM"""
+    """Преобразование кодов в DM и сохранение в архив"""
     zip_name = f"example{secrets.token_hex(nbytes=16)}.zip"
     code_zip = zipfile.ZipFile(directory + zip_name, mode='a')
     for i in range(len(row.roll_codes)):
@@ -44,8 +43,39 @@ async def create_code(row: Item):
     )
     return response
 
+
+@app.post(
+        path="/read/",
+        response_class=FileResponse,
+        responses={200: {"content": {"text/plain": {}}}},
+        name="Read DataMatrixCodes"
+        )
+async def read_dmcode(
+    files: Annotated[
+        list[UploadFile], File(description="Multiple files as DataMatrixCode.png")
+    ],
+):
+    """Преобразование DM в коды и сохранение в файл"""
+    codes = []
+    for file in files:
+        codes.append(dm_decode(file.file, file.filename))
+    with open("codes.txt", "w") as file:
+        for code in codes:
+            file.write(f"{code}\n")
+
+    return FileResponse("codes.txt", media_type="text/plain", filename="codes.txt")
+
+
+@app.get("/")
+async def main():
+    content = """
+<body>
+<h1>DataMatrixConverter</h1>
+<a href="/docs/">swager</a>
+</body>
+    """
+    return HTMLResponse(content=content)
+
+
 if __name__ == "__main__":
-    try:
-        uvicorn.run("app:app", host=host, port=port, reload=True, log_config=None)
-    except:
-        print("err")
+    uvicorn.run("app:app", host=host, port=port, reload=True)
