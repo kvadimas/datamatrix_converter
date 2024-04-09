@@ -20,14 +20,13 @@ class Item(BaseModel):
 
 @app.post(
         path="/create/",
-        response_class=FileResponse,
-        responses={200: {"content": {"application/x-zip-compressed": {}}}},
-        name="Create DataMatrixCodes"
+        name="Create DataMatrixCodes",
+        tags=["Converter"]
         )
 async def create_code(row: Item):
     """Преобразование кодов в DM и сохранение в архив"""
     zip_name = f"example{secrets.token_hex(nbytes=16)}.zip"
-    code_zip = zipfile.ZipFile(directory + zip_name, mode='a')
+    code_zip = zipfile.ZipFile(directory + zip_name, mode="a")
     for i in range(len(row.roll_codes)):
         name = row.file_name + str(i)
         dm_encode(row.roll_codes[i], name, directory)
@@ -46,9 +45,8 @@ async def create_code(row: Item):
 
 @app.post(
         path="/read/",
-        response_class=FileResponse,
-        responses={200: {"content": {"text/plain": {}}}},
-        name="Read DataMatrixCodes"
+        name="Read DataMatrixCodes",
+        tags=["Converter"]
         )
 async def read_dmcode(
     files: Annotated[
@@ -62,8 +60,25 @@ async def read_dmcode(
     with open("codes.txt", "w") as file:
         for code in codes:
             file.write(f"{code}\n")
+    zip_name = f"code_{secrets.token_hex(nbytes=16)}.zip"
+    zip = zipfile.ZipFile(directory + zip_name, mode="w")
+    zip.write("codes.txt")
+    response = FileResponse(
+        path=directory + zip_name,
+        filename=zip_name,
+        media_type="application/x-zip-compressed",
+        headers={"Content-Disposition": f"attachment; filename={zip_name}"}
+    )
+    return response
 
-    return FileResponse("codes.txt", media_type="text/plain", filename="codes.txt")
+
+@app.post(
+        path="/read-zip/",
+        name="Read library DataMatrixCodes",
+        tags=["Converter"]
+        )
+async def read_library_dmcode():
+    pass
 
 
 @app.get("/")
